@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS weather.stg_geocoding
 (
     city            LowCardinality(String),
+    search_name     LowCardinality(String),
     id              UInt32,
     name            String,
     latitude        Float64,

@@ -4,7 +4,7 @@ import sys
 
 from app.config import load_settings
 from app.errors import PipelineError
-from app.pipeline import run_cities, run_init
+from app.pipeline import run_cities, run_init, run_weather
 
 logger = logging.getLogger("app")
 
@@ -21,6 +21,14 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     commands.add_parser("init", help="create tables")
     commands.add_parser("cities", help="load cities data")
+
+    weather = commands.add_parser("weather", help="load weather data")
+    weather.add_argument(
+        "--max-chunks", type=int, default=350, help="max yearly chunks per run"
+    )
+    weather.add_argument(
+        "--pause", type=float, default=20.0, help="seconds between API requests"
+    )
 
     args = parser.parse_args(argv)
     return args
@@ -39,6 +47,8 @@ def main(argv: list[str] | None = None) -> int:
             run_init(settings)
         elif args.command == "cities":
             run_cities(settings)
+        elif args.command == "weather":
+            run_weather(settings, args.max_chunks, args.pause)
 
     except PipelineError as e:
         logger.error("Pipeline failed: %s", e, exc_info=args.verbose)

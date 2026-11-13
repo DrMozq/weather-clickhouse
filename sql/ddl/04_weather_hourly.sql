@@ -13,5 +13,5 @@ CREATE TABLE IF NOT EXISTS weather.weather_hourly
     loaded_at               DateTime('UTC') DEFAULT now()
 )
 ENGINE = ReplacingMergeTree(loaded_at)
-PARTITION BY toYYYYMM(ts)
+PARTITION BY toYear(ts)
 ORDER BY (city, ts);

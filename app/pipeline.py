@@ -11,7 +11,7 @@ from app.extract.http import ApiClient
 from app.extract.open_meteo import extract_open_meteo, target_end_date
 from app.load.staging import load_stg_geocoding, load_stg_open_meteo
 from app.state import get_weather_tasks
-from app.transform.core import load_cities, load_weather_hourly
+from app.transform.core import load_cities, load_weather_daily, load_weather_hourly
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +78,11 @@ def run_weather(settings: Settings, max_chunks: int, pause: float) -> None:
             )
         logger.info("Loaded %d chunks into stg_open_meteo", loaded)
 
-        # 3. Transform staging -> weather_hourly
+        # 3a. Transform staging -> weather_hourly
         load_weather_hourly(client)
+
+        # 3b. Rebuild affected days of weather_daily
+        load_weather_daily(client)
 
         # 4. Data quality checks
         run_checks(client, CHECKS_DIR, prefix="weather_")

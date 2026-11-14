@@ -17,3 +17,12 @@ def load_cities(client: Client, run_ts: datetime) -> None:
 def load_weather_hourly(client: Client) -> None:
     """Unnest new stg_open_meteo chunks into weather.weather_hourly."""
     execute_file(client, TRANSFORM_DIR / "weather_hourly.sql")
+
+
+def load_weather_daily(client: Client) -> None:
+    """Rebuild affected days of weather.weather_daily, one query per city timezone."""
+    result = client.query("SELECT DISTINCT timezone FROM weather.cities FINAL")
+    timezones = [row[0] for row in result.result_rows]
+    for tz in timezones:
+        execute_file(client, TRANSFORM_DIR / "weather_daily.sql", {"tz": tz})
+    logger.info("Rebuilt weather_daily for %d timezones", len(timezones))

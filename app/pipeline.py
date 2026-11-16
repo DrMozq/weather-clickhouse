@@ -27,30 +27,49 @@ def run_init(settings: Settings) -> None:
         client.close()
 
 
-def run_cities(settings: Settings) -> None:
-    """Geocode reference cities, load staging, rebuild weather.cities and run checks."""
+def cities_load(settings: Settings) -> datetime:
+    """Geocode reference cities into stg_geocoding; return the run timestamp."""
     run_ts = datetime.now(UTC).replace(microsecond=0)
-    logger.info("Cities run started, run_ts=%s", run_ts)
+    logger.info("Cities load started, run_ts=%s", run_ts)
 
-    # 1. Extract
     cities = read_cities(CITIES_CSV)
     with ApiClient(settings.geocoding_url) as api:
         rows = extract_geocoding(api, cities, run_ts)
 
     client = get_client(settings.db)
     try:
-        # 2. Load into staging
         load_stg_geocoding(client, rows)
-
-        # 3. Transform staging -> cities
-        load_cities(client, run_ts)
-
-        # 4. Data quality checks
-        run_checks(client, CHECKS_DIR, prefix="cities_")
-        logger.info("Cities run finished, run_ts=%s", run_ts)
-
     finally:
         client.close()
+
+    return run_ts
+
+
+def cities_transform(settings: Settings, run_ts: datetime) -> None:
+    """Rebuild weather.cities from stg_geocoding rows of run_ts."""
+    client = get_client(settings.db)
+    try:
+        load_cities(client, run_ts)
+    finally:
+        client.close()
+
+
+def cities_checks(settings: Settings) -> None:
+    """Run cities data quality checks."""
+    client = get_client(settings.db)
+    try:
+        run_checks(client, CHECKS_DIR, prefix="cities_")
+    finally:
+        client.close()
+
+
+def run_cities(settings: Settings) -> None:
+    """Run the whole cities pipeline (manual / CLI run)."""
+    logger.info("Cities run started")
+    run_ts = cities_load(settings)
+    cities_transform(settings, run_ts)
+    cities_checks(settings)
+    logger.info("Cities run finished, run_ts=%s", run_ts)
 
 
 def weather_load(settings: Settings, max_chunks: int, pause: float) -> int:

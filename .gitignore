@@ -4,3 +4,5 @@ __pycache__/
 data/
 *.session.sql
 logs/
+airflow/config/
+airflow/plugins/

@@ -8,9 +8,10 @@ Period: from 2016-01-01 to the latest date in the archive (about 5 days ago).
 Eight hourly variables: temperature, apparent temperature, humidity,
 precipitation, snowfall, wind speed, sea level pressure, weather code.
 
-Built as a learning project to practise ClickHouse: MergeTree engines,
-partitioning, idempotent loading without transactions, window functions.
-ClickHouse runs in Docker on a Raspberry Pi 5; the pipeline runs there by cron.
+Built as a learning project to practise ClickHouse and Airflow: MergeTree
+engines, partitioning, idempotent loading without transactions, window
+functions, orchestration. ClickHouse and Apache Airflow 3 run in Docker on a
+Raspberry Pi 5.
 
 ## Architecture
 
@@ -84,10 +85,42 @@ python -m app weather           # load weather, rebuild marts, run checks
 python -m app weather --max-chunks 3 --pause 1   # small test run
 ```
 
-Cron on the Raspberry Pi:
+The CLI runs the whole pipeline in one process. It is used for manual runs and
+debugging; the scheduled runs are done by Airflow.
 
-```
-0 8 * * * cd /home/drmozq/weather-clickhouse && flock -n /tmp/weather.lock .venv/bin/python -m app weather >> logs/weather.log 2>&1
+## Orchestration (Airflow)
+
+Airflow 3 runs in Docker next to ClickHouse (`airflow/`): LocalExecutor,
+PostgreSQL for the metadata database, no Redis or Celery workers — one machine
+does not need distributed execution, and it saves memory on the Pi. The image
+extends `apache/airflow` with `clickhouse-connect`; the project directory is
+mounted into the containers read-only.
+
+| DAG | Schedule | Tasks |
+|-----|----------|-------|
+| `weather_daily` | every day at 08:00 MSK | `load` → `transform` → `checks` |
+| `cities` | manual | `load` → `transform` → `checks` |
+| `smoke_test` | manual | checks that project code is importable and ClickHouse is reachable |
+
+- **Thin DAGs.** Tasks only call functions from `app/pipeline.py`
+  (`weather_load`, `weather_transform`, `weather_checks`, ...). All logic stays
+  in the package, so it also runs without Airflow (`python -m app ...`).
+- **Each task is independent.** It opens and closes its own ClickHouse
+  connection. Tasks do not pass data to each other: `load` writes to staging,
+  and the transforms find new rows by `loaded_at`. Only `cities` passes the run
+  timestamp from `load` to `transform` through XCom.
+- **Retries are safe** because every step is idempotent: `retries=2`,
+  `max_active_runs=1` (no overlapping runs), `execution_timeout` for the
+  long API load.
+- **API limit is not a failure.** When the daily limit is reached, `load`
+  stops and finishes successfully; the loaded chunks are still transformed.
+
+```bash
+cd airflow
+echo "AIRFLOW_UID=$(id -u)" > .env   # see .env.example
+docker compose build
+docker compose up airflow-init
+docker compose up -d                 # UI on http://<host>:8080
 ```
 
 ## Examples
@@ -126,7 +159,9 @@ app/
   transform/  core.py
   state.py    watermarks for weather loading
   checks.py   runs sql/checks
-  pipeline.py run_init, run_cities, run_weather
+  pipeline.py pipeline steps used by the CLI and by the DAGs
+dags/         weather_daily.py, cities.py, smoke_test.py
+airflow/      docker-compose.yaml, Dockerfile for Airflow
 sql/
   ddl/        tables and views
   transform/  staging -> core tables

@@ -85,6 +85,13 @@ python -m app weather           # load weather, rebuild marts, run checks
 python -m app weather --max-chunks 3 --pause 1   # small test run
 ```
 
+Tests (pure functions, no database or network needed):
+
+```bash
+.venv/bin/pip install -r requirements-dev.txt
+pytest
+```
+
 The CLI runs the whole pipeline in one process. It is used for manual runs and
 debugging; the scheduled runs are done by Airflow.
 

@@ -30,8 +30,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--pause", type=float, default=20.0, help="seconds between API requests"
     )
 
-    args = parser.parse_args(argv)
-    return args
+    return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:

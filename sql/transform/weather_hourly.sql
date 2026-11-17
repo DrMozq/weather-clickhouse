@@ -3,7 +3,7 @@ INSERT INTO weather.weather_hourly
      precipitation, snowfall, wind_speed_10m, pressure_msl, weather_code, loaded_at)
 SELECT
     city,
-    parseDateTimeBestEffort(t, 'UTC') AS ts, 
+    parseDateTimeBestEffort(t, 'UTC') AS ts,
     temperature_2m,
     apparent_temperature,
     relative_humidity_2m,

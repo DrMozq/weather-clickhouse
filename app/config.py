@@ -10,7 +10,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SQL_DIR = PROJECT_ROOT / "sql"
 DDL_DIR = SQL_DIR / "ddl"
 TRANSFORM_DIR = SQL_DIR / "transform"
-MART_DIR = SQL_DIR / "mart"
 CHECKS_DIR = SQL_DIR / "checks"
 
 

@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 
-from clickhouse_connect.driver import Client
+from clickhouse_connect.driver.client import Client
 
 from app.db import fetch_file
 from app.errors import DataQualityError
